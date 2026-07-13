@@ -1,0 +1,16 @@
+# Verbotsliste (Themen/Begriffe). Ein Eintrag pro Zeile, Kommentare mit '#'.
+# Treffer => rights_status BLOCKED oder REVIEW_REQUIRED (siehe rights-Stufe).
+# Bewusst konservativ; für den Produktivbetrieb erweitern.
+gewalt
+terror
+selbstverletzung
+suizid
+hetze
+diskriminierung
+nacktheit
+pornografie
+droge
+waffe kaufen
+finanzgarantie
+garantierte rendite
+heilversprechen

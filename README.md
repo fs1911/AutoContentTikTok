@@ -14,6 +14,63 @@ oder einem lizenzierten YouTube-Link entstehen automatisch fertige, veröffentli
 | **PROMPT** | „10 Sommerdüfte", „Top 7 WM-Momente", „5 Fehler auf Baustellen" | Neues faceless Short mit Voiceover, Visuals, Untertiteln |
 | **LINK** | YouTube-URL aus Whitelist-Kanal / lizenzierter Quelle | Transformiertes eigenständiges Short aus starken Segmenten |
 
+## Lauffähiges System (Quickstart)
+
+Das Repo enthält **nicht nur ein Konzept, sondern eine funktionierende Implementierung**.
+Sie läuft **vollständig offline** (deterministisches Template-LLM, PIL-Visuals, stiller
+Voiceover-Bett, gebündelte ffmpeg-Binary, Dry-Run-Publishing) und schaltet automatisch auf
+echte Dienste um, sobald API-Keys gesetzt sind.
+
+```bash
+pip install -r requirements.txt
+
+# Umgebung prüfen (ffmpeg, gewählte Provider)
+python -m autocontent doctor
+
+# Prompt-to-Video: erzeugt ein echtes 1080x1920-MP4 in ./output/
+python -m autocontent submit --prompt "10 Sommerdüfte" --run
+
+# Link-to-Video (nur Whitelist-Kanäle; Transkript als JSON):
+python -m autocontent submit \
+  --link "https://youtu.be/x?channel_id=UC_OWN_DEMO_CHANNEL" \
+  --transcript transcript.json --run
+
+python -m autocontent list          # alle Jobs
+python -m autocontent show <job_id> # Job-Details (JSON)
+python -m autocontent run-all       # alle offenen Jobs verarbeiten
+```
+
+Ergebnis pro Job in `./output/`: `video_<id>.mp4` (9:16, H.264/AAC, gebrannte Untertitel),
+`cover_<id>.jpg`, `publish_<id>.json` (Publish-Payload), plus `subs.ass`/`subs.srt` und alle
+Szenen-Assets unter `output/assets/<id>/`. Der Job-Zustand liegt in `output/autocontent.db`.
+
+**Was echte Keys aktivieren** (Auswahl automatisch, siehe `.env.example`):
+`ANTHROPIC_API_KEY`/`OPENAI_API_KEY` → echtes LLM · `ELEVENLABS_API_KEY`/`OPENAI_API_KEY`
+→ echtes Voiceover · `TIKTOK_ACCESS_TOKEN` + `PUBLISH_MODE=direct_post|draft` → echte
+Veröffentlichung über die TikTok Content Posting API.
+
+### Tests
+
+```bash
+python -m unittest tests.test_units          # schnelle Logik-Tests
+python -m unittest tests.test_e2e            # echter End-to-End-Render (~25s)
+```
+
+### Architektur im Code
+
+| Konzept-Modul | Code |
+|---------------|------|
+| Input-Layer / CLI | `autocontent/cli.py`, `autocontent/db.py` |
+| Rights & Compliance (Gate #1) | `autocontent/stages.py:rights_check`, `data/banned_terms.txt`, `data/whitelist.json` |
+| Understanding & Planning / Script | `autocontent/llm.py`, `autocontent/stages.py` |
+| Voiceover Engine (TTS) | `autocontent/providers/tts.py` |
+| Visual Engine | `autocontent/providers/visuals.py` |
+| Video Assembly + Subtitles | `autocontent/ffmpeg_render.py`, `autocontent/subtitles.py` |
+| Quality Gate (#2) | `autocontent/stages.py:quality_check` |
+| Publishing Engine | `autocontent/providers/publishing.py` |
+| Analytics & Optimization | `autocontent/stages.py:analytics` |
+| Orchestrierung / Statuslogik | `autocontent/pipeline.py` |
+
 ## Dokumente
 
 Diese Repository-Dokumentation ist so aufgebaut, dass sich daraus direkt drei Artefakte ableiten lassen:

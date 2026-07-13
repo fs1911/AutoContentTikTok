@@ -1,0 +1,11 @@
+{
+  "_comment": "Zulässige Quellen für LINK-Input. channel_id => Metadaten. Nur hier gelistete Kanäle (eigene/lizenzierte) werden für Link-to-Video zugelassen; alles andere wird BLOCKED.",
+  "channels": [
+    {
+      "channel_id": "UC_OWN_DEMO_CHANNEL",
+      "owner": "Eigener Kanal (Demo)",
+      "license_type": "OWN",
+      "notes": "Beispiel-Eintrag für den eigenen Kanal."
+    }
+  ]
+}
