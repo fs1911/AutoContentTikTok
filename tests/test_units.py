@@ -64,9 +64,23 @@ class TestRights(unittest.TestCase):
         self.assertIn("Verbotsliste", r["reason_if_blocked"])
 
     def test_link_unknown_blocked(self):
-        job = {"input_type": "LINK", "input_value": "https://youtu.be/abc", "topic": ""}
+        # Ohne Metadaten (kein Netz/keine channel_id) => fail closed.
+        orig = stages.fetch_metadata
+        stages.fetch_metadata = lambda url: {}
+        try:
+            job = {"input_type": "LINK", "input_value": "https://youtu.be/abc", "topic": ""}
+            r = stages.rights_check(job)
+        finally:
+            stages.fetch_metadata = orig
+        self.assertEqual(r["rights_status"], RightsStatus.BLOCKED.value)
+
+    def test_link_not_whitelisted_blocked(self):
+        job = {"input_type": "LINK",
+               "input_value": "https://youtu.be/abc?channel_id=UC_FREMD",
+               "topic": ""}
         r = stages.rights_check(job)
         self.assertEqual(r["rights_status"], RightsStatus.BLOCKED.value)
+        self.assertIn("Whitelist", r["reason_if_blocked"])
 
     def test_link_whitelisted_approved(self):
         job = {"input_type": "LINK",

@@ -13,7 +13,7 @@ from . import subtitles as subs
 from .llm import get_llm
 from .models import ContentType, RightsStatus, Status
 from .providers.publishing import get_publisher
-from .providers.transcription import get_transcriber, load_transcript_file
+from .providers.transcription import fetch_metadata, get_transcriber, load_transcript_file
 from .providers.tts import get_tts
 from .providers.visuals import get_visuals
 
@@ -59,7 +59,11 @@ def rights_check(job: dict[str, Any]) -> dict[str, Any]:
                 "reason_if_blocked": f"Verbotsliste-Treffer: '{hit}'"}
 
     if job["input_type"] == "LINK":
+        # Explizite channel_id im Link ist ein bewusster Owner-/Test-Override; sonst
+        # echte Kanal-ID aus den Video-Metadaten (yt-dlp).
         channel = _extract_channel(job["input_value"])
+        if not channel:
+            channel = fetch_metadata(job["input_value"]).get("channel_id", "")
         whitelist = _load_whitelist()
         if not channel:
             return {"status": Status.BLOCKED.value, "rights_status": RightsStatus.BLOCKED.value,
@@ -81,6 +85,10 @@ def planning(job: dict[str, Any]) -> dict[str, Any]:
     llm = get_llm()
     if job["input_type"] == "LINK":
         transcript = job.get("transcript_json") or []
+        if not transcript:
+            # Kein Transkript mitgegeben -> echte Aufnahme (Download + Whisper).
+            work = CONFIG.assets_dir / job["job_id"]
+            transcript = get_transcriber().transcribe(job["input_value"], work_dir=work)
         seg = llm.segment_transcript(transcript, job.get("language", "de"))
         analysis = {
             "topic": seg.get("topic", "Clip"),
@@ -99,13 +107,16 @@ def planning(job: dict[str, Any]) -> dict[str, Any]:
     outline += [{"scene_id": i + 2, "role": "BODY"} for i in range(analysis["item_count"])]
     outline.append({"scene_id": analysis["item_count"] + 2, "role": "CTA"})
 
-    return {
+    result = {
         "status": Status.SCRIPTED.value,  # naechster Worker ist Script
         "topic": analysis["topic"],
         "content_type": analysis["content_type"],
         "scenes_json": outline,
         "_analysis": analysis,  # transient, in script verwendet
     }
+    if job["input_type"] == "LINK":
+        result["transcript_json"] = transcript  # aufgezeichnetes Transkript sichern
+    return result
 
 
 # ---------------------------------------------------------------------------

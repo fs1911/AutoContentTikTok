@@ -48,7 +48,17 @@ class Config:
     anthropic_api_key: str = field(default_factory=lambda: _env("ANTHROPIC_API_KEY"))
     openai_api_key: str = field(default_factory=lambda: _env("OPENAI_API_KEY"))
     elevenlabs_api_key: str = field(default_factory=lambda: _env("ELEVENLABS_API_KEY"))
+
+    # TikTok Login Kit + Content Posting API
     tiktok_access_token: str = field(default_factory=lambda: _env("TIKTOK_ACCESS_TOKEN"))
+    tiktok_refresh_token: str = field(default_factory=lambda: _env("TIKTOK_REFRESH_TOKEN"))
+    tiktok_client_key: str = field(default_factory=lambda: _env("TIKTOK_CLIENT_KEY"))
+    tiktok_client_secret: str = field(default_factory=lambda: _env("TIKTOK_CLIENT_SECRET"))
+    tiktok_redirect_uri: str = field(default_factory=lambda: _env("TIKTOK_REDIRECT_URI"))
+    tiktok_privacy_level: str = field(default_factory=lambda: _env("TIKTOK_PRIVACY_LEVEL", "SELF_ONLY"))
+
+    # Link-Ingestion (yt-dlp + Whisper)
+    whisper_model: str = field(default_factory=lambda: _env("WHISPER_MODEL", "base"))
 
     # Modell-IDs
     anthropic_model: str = field(default_factory=lambda: _env("ANTHROPIC_MODEL", "claude-sonnet-5"))

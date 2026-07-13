@@ -46,8 +46,37 @@ Szenen-Assets unter `output/assets/<id>/`. Der Job-Zustand liegt in `output/auto
 
 **Was echte Keys aktivieren** (Auswahl automatisch, siehe `.env.example`):
 `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` → echtes LLM · `ELEVENLABS_API_KEY`/`OPENAI_API_KEY`
-→ echtes Voiceover · `TIKTOK_ACCESS_TOKEN` + `PUBLISH_MODE=direct_post|draft` → echte
-Veröffentlichung über die TikTok Content Posting API.
+→ echtes Voiceover · `OPENAI_API_KEY` oder `faster-whisper` → echte YouTube-Transkription ·
+TikTok-Credentials + `PUBLISH_MODE=direct_post|draft` → echte Veröffentlichung.
+
+### Echtes TikTok-Publishing (OAuth-Flow)
+
+```bash
+# 1. App-Daten setzen (TikTok Developer Portal):
+export TIKTOK_CLIENT_KEY=... TIKTOK_CLIENT_SECRET=... TIKTOK_REDIRECT_URI=https://app/cb
+
+# 2. Autorisierungs-URL erzeugen, im Browser bestätigen, 'code' aus der Redirect-URL kopieren:
+python -m autocontent tiktok-auth-url
+
+# 3. Code gegen Tokens tauschen (gibt ACCESS/REFRESH-Token aus):
+python -m autocontent tiktok-exchange <code>
+
+# 4. Tokens + Modus setzen -> ab jetzt postet die Pipeline echt:
+export TIKTOK_ACCESS_TOKEN=... TIKTOK_REFRESH_TOKEN=... PUBLISH_MODE=direct_post
+```
+
+Der Publisher führt dann den vollständigen Weg aus: `init` (Direct Post bzw. Inbox/Draft) →
+**gechunkter Upload** (`Content-Range`) → **Status-Polling**. Access-Tokens werden bei
+Bedarf automatisch per Refresh-Token erneuert. Standard bleibt `SELF_ONLY` (privat) —
+für öffentliches Posten `TIKTOK_PRIVACY_LEVEL=PUBLIC_TO_EVERYONE` (setzt einen von TikTok
+freigegebenen App-Status voraus).
+
+### Echte YouTube-Aufnahme (Link-Input ohne mitgegebenes Transkript)
+
+Wird `--transcript` weggelassen, lädt das System via **yt-dlp** die echten Kanal-Metadaten
+(für den Rechte-Check gegen die Whitelist) und die Audiospur und transkribiert sie
+(OpenAI Whisper API oder lokal via `faster-whisper`). Ohne Netz/Key degradiert der Schritt
+sauber und der Rechte-Check bleibt **fail-closed**.
 
 ### Tests
 
@@ -67,7 +96,8 @@ python -m unittest tests.test_e2e            # echter End-to-End-Render (~25s)
 | Visual Engine | `autocontent/providers/visuals.py` |
 | Video Assembly + Subtitles | `autocontent/ffmpeg_render.py`, `autocontent/subtitles.py` |
 | Quality Gate (#2) | `autocontent/stages.py:quality_check` |
-| Publishing Engine | `autocontent/providers/publishing.py` |
+| Publishing Engine | `autocontent/providers/publishing.py`, `autocontent/tiktok.py` (OAuth + Upload) |
+| Link-Ingestion (YouTube) | `autocontent/providers/transcription.py` (yt-dlp + Whisper) |
 | Analytics & Optimization | `autocontent/stages.py:analytics` |
 | Orchestrierung / Statuslogik | `autocontent/pipeline.py` |
 

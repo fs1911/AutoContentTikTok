@@ -94,18 +94,49 @@ def cmd_list(args) -> int:
 def cmd_doctor(args) -> int:
     """Prüft die Umgebung (ffmpeg, Provider-Auswahl)."""
     from . import ffmpeg_render as ff
+    from .providers.publishing import get_publisher
+    from .providers.transcription import _ytdlp_available
     import subprocess
     print("== AutoContentTikTok doctor ==")
     try:
         out = subprocess.run([ff.FFMPEG, "-version"], capture_output=True, text=True)
-        print("ffmpeg:", out.stdout.splitlines()[0])
+        print("ffmpeg      :", out.stdout.splitlines()[0])
     except Exception as e:  # noqa: BLE001
-        print("ffmpeg: FEHLT", e)
+        print("ffmpeg      : FEHLT", e)
     print("LLM-Provider :", CONFIG.llm_provider)
     print("TTS-Provider :", CONFIG.tts_provider)
-    print("Publish-Modus:", CONFIG.publish_mode,
-          "(Token gesetzt)" if CONFIG.tiktok_access_token else "(dry-run/kein Token)")
+    print("Publisher    :", get_publisher().name, f"(Modus={CONFIG.publish_mode})")
+    tok = "ja" if (CONFIG.tiktok_access_token or CONFIG.tiktok_refresh_token) else "nein"
+    print("TikTok-Creds :", f"Token/Refresh={tok}, ClientKey={'ja' if CONFIG.tiktok_client_key else 'nein'}")
+    print("yt-dlp       :", "verfügbar" if _ytdlp_available() else "fehlt")
     print("Output-Dir   :", CONFIG.output_dir)
+    return 0
+
+
+def cmd_tiktok_auth_url(args) -> int:
+    from . import tiktok
+    try:
+        print(tiktok.authorization_url(scopes=args.scopes))
+        print("\nÖffne die URL, autorisiere, kopiere den 'code' aus der Redirect-URL und rufe:")
+        print("  python -m autocontent tiktok-exchange <code>")
+    except tiktok.TikTokError as e:
+        print(f"Fehler: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_tiktok_exchange(args) -> int:
+    from . import tiktok
+    try:
+        data = tiktok.exchange_code(args.code)
+    except tiktok.TikTokError as e:
+        print(f"Fehler: {e}", file=sys.stderr)
+        return 1
+    print(json.dumps(data, indent=2))
+    print("\nSetze für den Betrieb:")
+    print(f"  export TIKTOK_ACCESS_TOKEN={data.get('access_token','')}")
+    print(f"  export TIKTOK_REFRESH_TOKEN={data.get('refresh_token','')}")
+    print("  export PUBLISH_MODE=direct_post   # oder draft")
     return 0
 
 
@@ -156,6 +187,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     d = sub.add_parser("doctor", help="Umgebung prüfen")
     d.set_defaults(func=cmd_doctor)
+
+    au = sub.add_parser("tiktok-auth-url", help="OAuth-Autorisierungs-URL ausgeben")
+    au.add_argument("--scopes", default="video.publish,video.upload")
+    au.set_defaults(func=cmd_tiktok_auth_url)
+
+    ex = sub.add_parser("tiktok-exchange", help="OAuth-Code gegen Tokens tauschen")
+    ex.add_argument("code")
+    ex.set_defaults(func=cmd_tiktok_exchange)
     return p
 
 
