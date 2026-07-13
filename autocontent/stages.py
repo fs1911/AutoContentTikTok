@@ -145,32 +145,39 @@ def _scene_duration(text: str, hint: float) -> float:
     return round(dur, 2)
 
 
-def _fit_total(scenes: list[dict]) -> None:
-    total = sum(s["duration"] for s in scenes)
-    factor = 1.0
-    if total > CONFIG.max_duration_s:
-        factor = CONFIG.max_duration_s / total
-    elif total < CONFIG.min_duration_s and total > 0:
-        factor = CONFIG.min_duration_s / total
-    if factor != 1.0:
-        for s in scenes:
-            s["duration"] = round(max(CONFIG.min_scene_s * 0.5, s["duration"] * factor), 2)
-
-
 def voiceover(job: dict[str, Any]) -> dict[str, Any]:
+    """Erzeugt pro Szene echtes Voiceover; die Szenendauer folgt der Sprechlänge."""
     tts = get_tts()
     scenes = job["script_json"]
+    lang = job.get("language", "de")
     assets_dir = CONFIG.assets_dir / job["job_id"]
     assets_dir.mkdir(parents=True, exist_ok=True)
 
     for s in scenes:
-        s["duration"] = _scene_duration(s.get("voiceover_text", ""), s.get("duration_hint", 3.0))
-    _fit_total(scenes)
-
-    for s in scenes:
+        est = _scene_duration(s.get("voiceover_text", ""), s.get("duration_hint", 3.0))
         audio_path = assets_dir / f"scene_{s['scene_id']:02d}.m4a"
-        tts.synthesize(s.get("voiceover_text", ""), s["duration"], audio_path)
+        actual = tts.synthesize(s.get("voiceover_text", ""), audio_path, est, voice=lang)
         s["audio_path"] = str(audio_path)
+        s["duration"] = actual
+
+    # Gesamtlänge ins erlaubte Fenster bringen, ohne Sprache zu zerschneiden:
+    total = sum(s["duration"] for s in scenes)
+    if total > CONFIG.max_duration_s:
+        factor = CONFIG.max_duration_s / total
+        for s in scenes:
+            new = round(s["duration"] * factor, 2)
+            sped = Path(s["audio_path"]).with_suffix(".fit.m4a")
+            ff.speed_audio(Path(s["audio_path"]), s["duration"] / new, sped)
+            s["audio_path"] = str(sped)
+            s["duration"] = new
+    elif total < CONFIG.min_duration_s and scenes:
+        # letzte Szene bis zur Mindestlänge auffüllen (stille Verlängerung)
+        extra = round(CONFIG.min_duration_s - total, 2)
+        last = scenes[-1]
+        new = round(last["duration"] + extra, 2)
+        ff.fit_audio(Path(last["audio_path"]), new, Path(last["audio_path"]).with_suffix(".pad.m4a"))
+        last["audio_path"] = str(Path(last["audio_path"]).with_suffix(".pad.m4a"))
+        last["duration"] = new
 
     return {
         "status": Status.VOICEOVER_DONE.value,  # naechster: visuals
@@ -257,8 +264,7 @@ def quality_check(job: dict[str, Any]) -> dict[str, Any]:
     total = sum(s.get("duration", 0) for s in scenes)
 
     struktur = 100 if {"HOOK", "BODY", "CTA"} <= roles and len(scenes) >= 3 else 60
-    tts_real = get_tts().name != "silent"
-    audio = 95 if tts_real else 80
+    audio = 95 if get_tts().real else 80
     untertitel = 90 if all(s.get("subtitle_text") for s in scenes) else 60
     visual = 90 if all(s.get("image_path") for s in scenes) else 40
     compliance = 100 if job.get("rights_status") == RightsStatus.APPROVED.value else 0

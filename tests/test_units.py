@@ -124,10 +124,16 @@ class TestDB(unittest.TestCase):
 
 
 class TestDuration(unittest.TestCase):
-    def test_fit_total_within_window(self):
-        scenes = [{"duration": 200.0}]
-        stages._fit_total(scenes)
-        self.assertLessEqual(scenes[0]["duration"], CONFIG.max_duration_s)
+    def test_scene_duration_clamped(self):
+        d = stages._scene_duration("ein zwei drei", 2.0)
+        self.assertGreaterEqual(d, CONFIG.min_scene_s)
+        self.assertLessEqual(d, CONFIG.max_scene_s)
+
+    def test_atempo_chain_handles_large_factor(self):
+        from autocontent import ffmpeg_render as ff
+        chain = ff._atempo_chain(3.5)  # > 2.0 muss verkettet werden
+        self.assertIn("atempo=2.0", chain)
+        self.assertTrue(chain.startswith("atempo"))
 
 
 if __name__ == "__main__":

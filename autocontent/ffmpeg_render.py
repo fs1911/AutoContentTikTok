@@ -49,6 +49,43 @@ def fit_audio(src: Path, duration: float, out_path: Path) -> Path:
     return out_path
 
 
+def audio_duration(src: Path) -> float:
+    """Ermittelt die Länge einer Audiodatei (dekodiert nach WAV, liest Frames)."""
+    import tempfile
+    import wave
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as t:
+        wav = Path(t.name)
+    try:
+        run(["-i", str(src), "-ac", "1", "-ar", "22050", str(wav)])
+        with wave.open(str(wav), "rb") as w:
+            return round(w.getnframes() / w.getframerate(), 3)
+    finally:
+        wav.unlink(missing_ok=True)
+
+
+def _atempo_chain(tempo: float) -> str:
+    """atempo unterstützt 0.5–2.0; für stärkere Faktoren verketten."""
+    tempo = max(0.25, min(tempo, 8.0))
+    parts = []
+    while tempo > 2.0:
+        parts.append("atempo=2.0")
+        tempo /= 2.0
+    while tempo < 0.5:
+        parts.append("atempo=0.5")
+        tempo /= 0.5
+    parts.append(f"atempo={tempo:.4f}")
+    return ",".join(parts)
+
+
+def speed_audio(src: Path, tempo: float, out_path: Path) -> Path:
+    """Ändert das Tempo (Tonhöhe bleibt) und encodet nach AAC."""
+    run([
+        "-i", str(src), "-af", _atempo_chain(tempo),
+        "-c:a", "aac", "-b:a", "128k", str(out_path),
+    ])
+    return out_path
+
+
 def scene_clip(image: Path, audio: Path, duration: float, out_path: Path,
                zoom: bool = True) -> Path:
     """Rendert eine Szene: Standbild (mit Ken-Burns-Zoom) + Audiospur."""
@@ -92,13 +129,14 @@ def concat_clips(clips: Sequence[Path], out_path: Path) -> Path:
 
 
 def burn_subtitles(video: Path, ass_file: Path, out_path: Path) -> Path:
-    """Brennt ASS-Untertitel via libass in das Video."""
+    """Brennt ASS-Untertitel via libass ein und normalisiert die Lautheit (~-14 LUFS)."""
     ass = str(ass_file).replace("\\", "/").replace(":", r"\:")
     run([
         "-i", str(video),
         "-vf", f"ass={ass}",
+        "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
-        "-c:a", "copy", str(out_path),
+        "-c:a", "aac", "-b:a", "128k", str(out_path),
     ])
     return out_path
 

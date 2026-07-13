@@ -85,7 +85,11 @@ class Config:
             return "elevenlabs"
         if self.openai_api_key:
             return "openai"
-        return "silent"
+        try:
+            import espeakng_loader  # noqa: F401
+            return "espeak"
+        except Exception:
+            return "silent"
 
 
 CONFIG = Config()
