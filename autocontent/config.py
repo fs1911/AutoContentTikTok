@@ -48,6 +48,11 @@ class Config:
     anthropic_api_key: str = field(default_factory=lambda: _env("ANTHROPIC_API_KEY"))
     openai_api_key: str = field(default_factory=lambda: _env("OPENAI_API_KEY"))
     elevenlabs_api_key: str = field(default_factory=lambda: _env("ELEVENLABS_API_KEY"))
+    # Menschliche Stimmen — konfigurierbar. Defaults: mehrsprachige Stimme (kann Deutsch).
+    elevenlabs_voice_id: str = field(default_factory=lambda: _env("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB"))
+    elevenlabs_model: str = field(default_factory=lambda: _env("ELEVENLABS_MODEL", "eleven_multilingual_v2"))
+    openai_tts_model: str = field(default_factory=lambda: _env("OPENAI_TTS_MODEL", "gpt-4o-mini-tts"))
+    openai_tts_voice: str = field(default_factory=lambda: _env("OPENAI_TTS_VOICE", "onyx"))
 
     # TikTok Login Kit + Content Posting API
     tiktok_access_token: str = field(default_factory=lambda: _env("TIKTOK_ACCESS_TOKEN"))

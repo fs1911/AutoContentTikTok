@@ -75,25 +75,33 @@ class _CloudTTS(BaseTTS):
 
 
 class ElevenLabsTTS(_CloudTTS):
+    """Höchste Qualität, sehr natürliche deutsche Stimme (voice_id konfigurierbar)."""
     name = "elevenlabs"
-    VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
 
     def _fetch(self, text):  # pragma: no cover
         import json
-        body = json.dumps({"text": text, "model_id": "eleven_multilingual_v2"}).encode()
+        body = json.dumps({
+            "text": text,
+            "model_id": CONFIG.elevenlabs_model,
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.75, "style": 0.2},
+        }).encode()
         req = urllib.request.Request(
-            f"https://api.elevenlabs.io/v1/text-to-speech/{self.VOICE_ID}", data=body,
-            headers={"content-type": "application/json", "xi-api-key": CONFIG.elevenlabs_api_key})
+            f"https://api.elevenlabs.io/v1/text-to-speech/{CONFIG.elevenlabs_voice_id}",
+            data=body,
+            headers={"content-type": "application/json", "accept": "audio/mpeg",
+                     "xi-api-key": CONFIG.elevenlabs_api_key})
         with urllib.request.urlopen(req, timeout=60) as r:
             return r.read()
 
 
 class OpenAITTS(_CloudTTS):
+    """Sehr günstig, gute natürliche Stimme; Modell/Stimme konfigurierbar."""
     name = "openai"
 
     def _fetch(self, text):  # pragma: no cover
         import json
-        body = json.dumps({"model": "tts-1", "voice": "alloy", "input": text}).encode()
+        body = json.dumps({"model": CONFIG.openai_tts_model,
+                           "voice": CONFIG.openai_tts_voice, "input": text}).encode()
         req = urllib.request.Request(
             "https://api.openai.com/v1/audio/speech", data=body,
             headers={"content-type": "application/json",
