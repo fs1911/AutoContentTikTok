@@ -110,6 +110,7 @@ Diese Repository-Dokumentation ist so aufgebaut, dass sich daraus direkt drei Ar
 3. **[To-do-Liste Automation](docs/todo-automation.md)** — konkrete, abhakbare Bau-Schritte pro Modul.
 
 Ergänzend:
+- **[Setup-Anleitung (Schritt für Schritt)](docs/setup-anleitung.md)** — lokales Setup, menschliche Stimme (OpenAI/ElevenLabs) und TikTok Content Posting API klickgenau.
 - **[Datenmodell (Schema)](docs/datenmodell.md)** — Feld-für-Feld-Definition der zentralen Job-Tabelle.
 - **[Beispiel-Job (JSON)](examples/job_example.json)** — vollständiger Datensatz eines Prompt-Jobs.
 
